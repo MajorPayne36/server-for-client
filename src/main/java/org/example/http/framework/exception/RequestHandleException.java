@@ -1,4 +1,4 @@
-package http.framework.exception;
+package org.example.http.framework.exception;
 
 public class RequestHandleException extends ServerException{
   public RequestHandleException() {

@@ -1,4 +1,4 @@
-package http.framework.resolver.argument;
+package org.example.http.framework.resolver.argument;
 
 import org.example.http.framework.Request;
 import org.example.http.framework.annotation.RequestHeader;

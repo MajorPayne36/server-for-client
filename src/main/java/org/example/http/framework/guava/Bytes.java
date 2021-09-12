@@ -1,4 +1,4 @@
-package http.framework.guava;
+package org.example.http.framework.guava;
 
 /**
  * from Guava library

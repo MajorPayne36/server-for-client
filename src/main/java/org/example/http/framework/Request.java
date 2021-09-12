@@ -1,4 +1,4 @@
-package http.framework;
+package org.example.http.framework;
 
 import lombok.Builder;
 import lombok.Value;

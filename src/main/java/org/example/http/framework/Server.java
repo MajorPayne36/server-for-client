@@ -1,4 +1,4 @@
-package http.framework;
+package org.example.http.framework;
 
 import io.github.classgraph.ClassGraph;
 import lombok.extern.java.Log;

@@ -1,5 +1,7 @@
 package org.example.http.framework;
 
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.classgraph.ClassGraph;
 import lombok.extern.java.Log;
 import org.example.http.framework.annotation.RequestMapping;
@@ -177,7 +179,7 @@ public class Server {
                 if (requestLineEndIndex == 1) {
                     throw new MalformedRequestException("request line end not found");
                 }
-                log.log(Level.INFO, "buffer: " + new String(buffer, 0 , requestLineEndIndex));
+                log.log(Level.INFO, "buffer: " + new String(buffer, 0, requestLineEndIndex));
 
                 final var requestLineParts = new String(buffer, 0, requestLineEndIndex).trim().split(" ");
                 if (requestLineParts.length != 3) {
@@ -185,9 +187,22 @@ public class Server {
                 }
 
                 final var method = requestLineParts[0];
+
                 // TODO: uri split ? -> URLDecoder
                 final var uri = requestLineParts[1];
 
+                String[] mass = uri.split("\\?");
+
+                final Map<String, List<String>> query = new HashMap<>();
+
+                if (mass.length != 1) {
+                    var queryString = mass[1];
+                    var parameters = Arrays.asList(queryString.split("&"));
+                    parameters.forEach(v -> {
+                        String[] args = v.split("=");
+                        query.put(args[0], List.of(args[1]));
+                    });
+                }
                 final var headersEndIndex = Bytes.indexOf(buffer, CRLFCRLF, requestLineEndIndex, read) + CRLFCRLF.length;
                 if (headersEndIndex == 3) {
                     throw new MalformedRequestException("headers too big");
@@ -223,11 +238,25 @@ public class Server {
                 in.skipNBytes(headersEndIndex);
                 final var body = in.readNBytes(contentLength);
 
+                // Parsing body from string to Map<String,List<String>>
+                final Map<String, List<String>> form = new HashMap<>(contentLength);
+                if (headers.get("Content-Type").equals("application/x-www-form-urlencoded")) {
+                    ObjectMapper mapper = new ObjectMapper();
+                    mapper.enable(DeserializationFeature.ACCEPT_SINGLE_VALUE_AS_ARRAY);
+                    String str = new String(body);
+                    log.log(Level.INFO, str);
+                    List bodyParams = mapper.readValue(str, List.class);
+
+                    form.putAll((HashMap<String, List<String>>) bodyParams.get(0));
+                }
+
                 // TODO: annotation monkey
                 final var request = Request.builder()
                         .method(method)
-                        .path(uri)
+                        .path(mass[0])
                         .headers(headers)
+                        .query(query)
+                        .form(form)
                         .body(body)
                         .build();
 

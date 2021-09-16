@@ -304,19 +304,22 @@ public class Server {
         return result;
     }
 
+    /**
+     * This method return HasMap of query parameters pars String -> List
+     *
+     * @param uriString String where we find parameters
+     * @return empty HashMap if don't find any params
+     * @throws URISyntaxException
+     * @throws UnsupportedEncodingException
+     */
     private static Map<String, List<String>> getQueryParams(String uriString) throws URISyntaxException, UnsupportedEncodingException {
         final Map<String, List<String>> result = new HashMap<>();
 
-        String[] mass = uriString.split("\\?");
-
-
-        if (mass.length != 1) {
-            var queryString = mass[1];
-            var parameters = Arrays.asList(queryString.split("&"));
-            parameters.forEach(v -> {
-                String[] args = v.split("=");
-                result.put(args[0], List.of(args[1]));
-            });
+        final URI uri = new URI(uriString);
+        final String query = uri.getRawQuery();
+        if (query != null) {
+            Arrays.stream(query.split("&"))
+                    .map(param -> result.put(param.split("=")[0], List.of(Objects.requireNonNull(decode(param.split("=")[1])))));
         }
         return result;
     }

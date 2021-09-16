@@ -224,7 +224,7 @@ public class Server {
 
                 // Parsing body from string to Map<String,List<String>>
                 Map<String, List<String>> form = new HashMap<>(contentLength);
-                if (headers.get("Content-Type").equals("application/x-www-form-urlencoded")) {
+                if ("application/x-www-form-urlencoded".equals(headers.get("Content-Type"))) {
                     form = getFormParams(body);
                 }
 

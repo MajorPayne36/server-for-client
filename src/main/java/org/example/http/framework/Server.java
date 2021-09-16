@@ -9,14 +9,9 @@ import org.example.http.framework.exception.*;
 import org.example.http.framework.guava.Bytes;
 import org.example.http.framework.resolver.argument.HandlerMethodArgumentResolver;
 
-import java.io.BufferedInputStream;
-import java.io.BufferedOutputStream;
-import java.io.IOException;
-import java.io.OutputStream;
+import java.io.*;
 import java.lang.reflect.InvocationTargetException;
-import java.net.ServerSocket;
-import java.net.Socket;
-import java.net.SocketException;
+import java.net.*;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
@@ -191,18 +186,7 @@ public class Server {
                 // TODO: uri split ? -> URLDecoder
                 final var uri = requestLineParts[1];
 
-                String[] mass = uri.split("\\?");
-
-                final Map<String, List<String>> query = new HashMap<>();
-
-                if (mass.length != 1) {
-                    var queryString = mass[1];
-                    var parameters = Arrays.asList(queryString.split("&"));
-                    parameters.forEach(v -> {
-                        String[] args = v.split("=");
-                        query.put(args[0], List.of(args[1]));
-                    });
-                }
+                Map<String, List<String>> queryParams = getQueryParams(uri);
                 final var headersEndIndex = Bytes.indexOf(buffer, CRLFCRLF, requestLineEndIndex, read) + CRLFCRLF.length;
                 if (headersEndIndex == 3) {
                     throw new MalformedRequestException("headers too big");
@@ -239,23 +223,17 @@ public class Server {
                 final var body = in.readNBytes(contentLength);
 
                 // Parsing body from string to Map<String,List<String>>
-                final Map<String, List<String>> form = new HashMap<>(contentLength);
+                Map<String, List<String>> form = new HashMap<>(contentLength);
                 if (headers.get("Content-Type").equals("application/x-www-form-urlencoded")) {
-                    ObjectMapper mapper = new ObjectMapper();
-                    mapper.enable(DeserializationFeature.ACCEPT_SINGLE_VALUE_AS_ARRAY);
-                    String str = new String(body);
-                    log.log(Level.INFO, str);
-                    List bodyParams = mapper.readValue(str, List.class);
-
-                    form.putAll((HashMap<String, List<String>>) bodyParams.get(0));
+                    form = getFormParams(body);
                 }
 
                 // TODO: annotation monkey
                 final var request = Request.builder()
                         .method(method)
-                        .path(mass[0])
+                        .path(uri.split("\\?")[0])
                         .headers(headers)
-                        .query(query)
+                        .query(queryParams)
                         .form(form)
                         .body(body)
                         .build();
@@ -307,7 +285,7 @@ public class Server {
                                         html
                         ).getBytes(StandardCharsets.UTF_8)
                 );
-            } catch (NoSuchMethodException e) {
+            } catch (NoSuchMethodException | URISyntaxException e) {
                 e.printStackTrace();
                 // TODO:
             }
@@ -315,5 +293,40 @@ public class Server {
             e.printStackTrace();
             // TODO:
         }
+    }
+
+    private static Map<String, List<String>> getFormParams(byte[] body) {
+        HashMap<String, List<String>> result = new HashMap<>();
+        String bodyString = new String(body);
+        Arrays.stream(bodyString.split("&"))
+                .map(param -> result.put(param.split("=")[0], List.of(Objects.requireNonNull(decode(param.split("=")[1])))));
+
+        return result;
+    }
+
+    private static Map<String, List<String>> getQueryParams(String uriString) throws URISyntaxException, UnsupportedEncodingException {
+        final Map<String, List<String>> result = new HashMap<>();
+
+        String[] mass = uriString.split("\\?");
+
+
+        if (mass.length != 1) {
+            var queryString = mass[1];
+            var parameters = Arrays.asList(queryString.split("&"));
+            parameters.forEach(v -> {
+                String[] args = v.split("=");
+                result.put(args[0], List.of(args[1]));
+            });
+        }
+        return result;
+    }
+
+    private static String decode(String value) {
+        try {
+            return URLDecoder.decode(value, StandardCharsets.UTF_8.toString());
+        } catch (UnsupportedEncodingException e) {
+            e.printStackTrace();
+        }
+        return null;
     }
 }
